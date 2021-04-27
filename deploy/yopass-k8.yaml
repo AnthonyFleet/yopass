@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: yopass
 spec:
-  replicas: 1
+  replicas: 5
   selector:
     matchLabels:
       app.kubernetes.io/name: yopass
@@ -16,17 +16,17 @@ spec:
         - name: yopass
           image: jhaals/yopass
           args:
-            - "--memcached=localhost:11211"
+            - "--redis=redis://localhost:6379"
           ports:
             - name: http
               containerPort: 1337
-        - name: yopass-memcached
-          image: memcached
+        - name: yopass-redis
+          image: redis
           args:
             - "-m 64"
           ports:
-            - name: memcached
-              containerPort: 11211
+            - name: redis
+              containerPort: 6379
 ---
 kind: Service
 apiVersion: v1
@@ -39,3 +39,23 @@ spec:
   ports:
     - name: http
       port: 1337
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: yopass
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: yopass
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+
