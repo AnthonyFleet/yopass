@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: yopass
 spec:
-  replicas: 5
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: yopass
@@ -16,14 +16,12 @@ spec:
         - name: yopass
           image: jhaals/yopass
           args:
-            - "--redis=redis://localhost:6379"
+            - "--redis=redis://localhost:6379/0"
           ports:
             - name: http
-              containerPort: 1337
+              containerPort: 1338
         - name: yopass-redis
           image: redis
-          args:
-            - "-m 64"
           ports:
             - name: redis
               containerPort: 6379
@@ -35,10 +33,24 @@ metadata:
 spec:
   selector:
     app.kubernetes.io/name: yopass
-  type: ClusterIP
+    run: yopass
+  type: LoadBalancer
   ports:
-    - name: http
-      port: 1337
+    - port: 80
+      targetPort: 1338
+      protocol: TCP
+      name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: test-ingress
+spec:
+  defaultBackend:
+    service:
+      name: yopass
+      port:
+        number: 80
 ---
 apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
@@ -58,4 +70,3 @@ spec:
       target:
         type: Utilization
         averageUtilization: 80
-
